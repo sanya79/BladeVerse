@@ -198,15 +198,6 @@ main.py  ──► GameManager (state machine)
                      └─► HUD overlay
 ```
 
----
-
-## 📈 Resume Description
-
-> **Blade Hand — Real-Time Gesture-Controlled Game** *(Python, OpenCV, MediaPipe, Pygame)*  
-> Developed a production-quality computer vision game where players slice virtual fruits by moving their index finger in front of a webcam. Built a real-time hand tracking pipeline using MediaPipe Hands (21-landmark model), mapped finger-tip coordinates to screen space, and implemented gesture classification (fist / open-palm / two-finger) for in-game power-ups. Engineered a physics engine with gravity, adaptive difficulty scaling, and a particle system with 22-particle juice-splash effects. Achieved stable 60 FPS with a modular OOP architecture across 8 production files.
-
----
-
 ## 🔮 Future Improvements
 
 - Multiplayer split-screen (two hands / two players)

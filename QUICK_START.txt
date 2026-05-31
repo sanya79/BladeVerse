@@ -1,0 +1,94 @@
+# ⚡ QUICK START CARD
+
+## 🚀 To Start Playing
+
+```
+1. Open PowerShell/Terminal in FRUITNINJA folder
+2. Type: .\venv\Scripts\Activate.ps1  (Windows)
+   or:   source venv/bin/activate     (macOS/Linux)
+3. Type: python main.py
+4. Point your finger at webcam and SLICE!
+```
+
+## 🎮 Controls
+
+| Gesture | Action |
+|---------|--------|
+| 👉 Pointing Finger | Slice fruits (normal mode) |
+| ✊ Fist | Shield (8 seconds) |
+| ✌️ Two Fingers | Combo multiplier mode |
+| ✋ Open Palm | Slow-motion (6 seconds) |
+
+| Keyboard | Action |
+|----------|--------|
+| **ESC** | Pause / Unpause |
+| **F3** | FPS Counter on/off |
+| **F4** | Debug mode (see hand) |
+| **F11** | Fullscreen on/off |
+
+## 💯 Scoring
+
+- 🍎 Fruit slice = **+10 points**
+- ⚡ Fast swipe = **+5 bonus**
+- 💣 Bomb hit = **-1 life**
+- 🎯 Miss fruit = **-1 life**
+
+## 📁 File Locations
+
+| What | Where |
+|-----|-------|
+| Config | `settings.py` |
+| Fonts | `assets/fonts/` |
+| Sounds | `assets/sounds/` |
+| Saved Scores | `saves/leaderboard.json` |
+
+## 🎨 Customize Game
+
+**Change Difficulty:**
+Edit `settings.py`:
+```python
+BOMB_CHANCE = 0.15              # More bombs
+INITIAL_SPAWN_INTERVAL = 60     # Faster spawning
+BASE_SLICE_POINTS = 15          # More points
+```
+
+**Add Fonts:**
+1. Download from fonts.google.com
+2. Put .ttf files in `assets/fonts/`
+3. Restart game
+
+**Add Sounds:**
+1. Get .ogg files from freesound.org
+2. Name them: `slice.ogg`, `bomb.ogg`, `combo.ogg`, etc.
+3. Put in `assets/sounds/`
+4. Restart game
+
+## 🔧 Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Hand not detected | F4 to enable debug, improve lighting |
+| Game runs slowly | Set `DETECTION_CONFIDENCE = 0.5` in settings.py |
+| No sound | Check .ogg files in `assets/sounds/` |
+| Camera not working | Try `CAMERA_INDEX = 1` in settings.py |
+
+## 📚 Documentation Files
+
+- `COMPLETION_SUMMARY.md` - What's been done
+- `SETUP_GUIDE.md` - Full feature documentation
+- `INSTALL.md` - Detailed installation & troubleshooting
+
+## 🎯 What's Working
+
+✅ Game runs successfully
+✅ All features implemented
+✅ Gesture detection ready (with fallback)
+✅ Sound system ready
+✅ Scoring system working
+✅ Leaderboard saves scores
+✅ All keyboard shortcuts working
+✅ Fully customizable
+
+---
+
+**Ready to play! 🍎🍌🍉**

@@ -254,10 +254,12 @@ class MainMenu:
         self.f_sub   = FontCache.get(FONT_SMALL)
         self._tick   = 0
         self.buttons = [
-            GlowButton("▶  PLAY",         SCREEN_W//2, SCREEN_H//2 - 30,  color=NEON_CYAN),
-            GlowButton("🏆  LEADERBOARD",  SCREEN_W//2, SCREEN_H//2 + 50,  color=NEON_YELLOW),
+            GlowButton("▶  PLAY",         SCREEN_W//2, SCREEN_H//2 - 50,  color=NEON_CYAN),
+            GlowButton("👤  PROFILE",      SCREEN_W//2 - 120, SCREEN_H//2 + 10,  color=NEON_GREEN),
+            GlowButton("🛒  SHOP",         SCREEN_W//2 + 120, SCREEN_H//2 + 10,  color=NEON_ORANGE),
+            GlowButton("🏆  LEADERBOARD",  SCREEN_W//2, SCREEN_H//2 + 70,  color=NEON_YELLOW),
             GlowButton("⚙  SETTINGS",     SCREEN_W//2, SCREEN_H//2 + 130, color=NEON_PURPLE),
-            GlowButton("✕  QUIT",          SCREEN_W//2, SCREEN_H//2 + 210, color=NEON_PINK),
+            GlowButton("✕  QUIT",         SCREEN_W//2, SCREEN_H//2 + 190, color=NEON_PINK),
         ]
 
     def update(self, events, mouse_pos):
@@ -267,7 +269,7 @@ class MainMenu:
         for event in events:
             for i, btn in enumerate(self.buttons):
                 if btn.is_clicked(event):
-                    return ["play", "leaderboard", "settings", "quit"][i]
+                    return ["play", "profile", "shop", "leaderboard", "settings", "quit"][i]
         return None
 
     def draw(self, surface: pygame.Surface):
@@ -515,3 +517,342 @@ class SettingsScreen:
             btn.draw(surface)
 
         self.back_btn.draw(surface)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# PROFILE / CREATE / EDIT SCREEN
+# ────────────────────────────────────────────────────────────────────────────
+class ProfileScreen:
+    """Create or edit a player profile: username (required), avatar, country."""
+
+    AVATARS = ["neon", "fire", "ice", "shadow", "galaxy"]
+    COUNTRIES = ["USA", "Japan", "India", "UK", "Canada", "Germany", "China", "Australia", "Brazil"]
+
+    def __init__(self):
+        self.f_title = FontCache.get(FONT_MEDIUM, bold=True)
+        self.f_label = FontCache.get(FONT_SMALL)
+        self.f_input = FontCache.get(FONT_SMALL, bold=True)
+        self._tick   = 0
+        self.username = ""
+        self.avatar = self.AVATARS[0]
+        self.country = self.COUNTRIES[0]
+        self.active_input = False
+        self.message = ""
+        self.save_btn = GlowButton("💾 SAVE PROFILE", SCREEN_W//2 + 160, SCREEN_H - 80, width=260, color=NEON_GREEN)
+        self.back_btn = GlowButton("← BACK", SCREEN_W//2 - 160, SCREEN_H - 80, width=220, color=NEON_PURPLE)
+        # shop integration helpers
+        self.shop_open = False
+
+        # animation state
+        self.slide = 1.0
+
+    def load_player(self, player):
+        if not player:
+            return
+        self.username = getattr(player, 'username', '') or ''
+        self.avatar = getattr(player, 'avatar', self.AVATARS[0])
+        self.country = getattr(player, 'country', self.COUNTRIES[0])
+
+    def update(self, events, mouse_pos, player_manager=None):
+        # update animation
+        self._tick += 1
+        self.slide = max(0.0, self.slide - 0.06)
+
+        self.save_btn.update(mouse_pos)
+        self.back_btn.update(mouse_pos)
+
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # avatar click
+                ax = SCREEN_W//2 - 220
+                ay = 240
+                for i, a in enumerate(self.AVATARS):
+                    r = pygame.Rect(ax + i*100, ay, 72, 72)
+                    if r.collidepoint(event.pos):
+                        self.avatar = a
+                # country click
+                cx = SCREEN_W//2 - 200
+                cy = 340
+                for i, c in enumerate(self.COUNTRIES):
+                    r = pygame.Rect(cx + (i%5)*140, cy + (i//5)*48, 130, 40)
+                    if r.collidepoint(event.pos):
+                        self.country = c
+
+            if event.type == pygame.KEYDOWN:
+                if self.active_input:
+                    if event.key == pygame.K_BACKSPACE:
+                        self.username = self.username[:-1]
+                    elif event.key == pygame.K_RETURN:
+                        self.active_input = False
+                    else:
+                        if len(self.username) < 20 and event.unicode.isprintable():
+                            self.username += event.unicode
+
+            # button clicks
+            if self.save_btn.is_clicked(event):
+                if not self.username.strip():
+                    self.message = "Username is required"
+                else:
+                    # persist via player_manager
+                    if player_manager:
+                        pm = player_manager
+                        if getattr(pm, 'player', None) and pm.player.username not in (None, "Player", ""):
+                            pm.edit_profile(username=self.username.strip(), avatar=self.avatar, country=self.country)
+                        else:
+                            pm.create_profile(self.username.strip(), self.avatar, self.country)
+                    self.message = "Profile saved"
+                    return "saved"
+
+            if self.back_btn.is_clicked(event):
+                return "back"
+
+            # detect click on username box to activate text input
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                ux = SCREEN_W//2 - 260
+                uy = 180
+                ub = pygame.Rect(ux, uy, 520, 48)
+                self.active_input = ub.collidepoint(event.pos)
+
+        return None
+
+    def draw(self, surface, player=None):
+        # slide-in animation offset
+        oy = int(80 * self.slide)
+        _panel(surface, pygame.Rect(SCREEN_W//2 - 420, 120 - oy, 840, SCREEN_H - 240))
+        _render_glow_text(surface, "PROFILE", self.f_title, NEON_CYAN,
+                          SCREEN_W//2, 160 - oy, glow_color=NEON_CYAN)
+
+        # Username input
+        ux = SCREEN_W//2 - 260
+        uy = 180 - oy
+        pygame.draw.rect(surface, (20,20,30), (ux, uy, 520, 48), border_radius=8)
+        txt = self.username if self.username else "Enter username..."
+        color = WHITE if self.username else (140,140,160)
+        txt_s = self.f_input.render(txt, True, color)
+        surface.blit(txt_s, (ux + 12, uy + 10))
+        # Username label
+        lbl = self.f_label.render("USERNAME (required)", True, (180,180,200))
+        surface.blit(lbl, (ux, uy - 26))
+
+        # Avatars
+        ax = SCREEN_W//2 - 220
+        ay = 240 - oy
+        a_label = self.f_label.render("AVATAR", True, (180,180,200))
+        surface.blit(a_label, (ax, ay - 34))
+        for i, a in enumerate(self.AVATARS):
+            x = ax + i*100
+            col = NEON_PINK if a == self.avatar else (80,80,100)
+            pygame.draw.rect(surface, col, (x, ay, 72, 72), border_radius=12)
+            nm = self.f_label.render(a.upper(), True, WHITE if a==self.avatar else (160,160,160))
+            surface.blit(nm, (x + 8, ay + 76))
+
+        # Countries
+        cx = SCREEN_W//2 - 200
+        cy = 340 - oy
+        c_label = self.f_label.render("COUNTRY", True, (180,180,200))
+        surface.blit(c_label, (cx, cy - 34))
+        for i, c in enumerate(self.COUNTRIES):
+            rx = cx + (i%5)*140
+            ry = cy + (i//5)*48
+            selected = c == self.country
+            col = NEON_CYAN if selected else (30,30,40)
+            pygame.draw.rect(surface, col, (rx, ry, 130, 40), border_radius=8)
+            cs = self.f_label.render(c, True, WHITE if selected else (160,160,160))
+            surface.blit(cs, (rx + 10, ry + 8))
+
+        # Message
+        if self.message:
+            m_s = self.f_label.render(self.message, True, NEON_YELLOW)
+            surface.blit(m_s, (SCREEN_W//2 - m_s.get_width()//2, SCREEN_H - 120))
+
+        # Buttons
+        self.save_btn.draw(surface)
+        self.back_btn.draw(surface)
+
+        # small hint
+        hint = self.f_label.render("You can edit this profile later from the Main Menu.", True, (150,150,180))
+        surface.blit(hint, (SCREEN_W//2 - hint.get_width()//2, SCREEN_H - 40))
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# SHOP SCREEN
+# ────────────────────────────────────────────────────────────────────────────
+class ShopScreen:
+    """Simple shop UI: categories, item cards, purchase/equip and chest opening."""
+
+    CATS = ['blades','trails','backgrounds']
+
+    def __init__(self, shop_manager, inventory_manager, player_manager, chest_manager, sound=None):
+        self.shop = shop_manager
+        self.inv = inventory_manager
+        self.pm  = player_manager
+        self.chest = chest_manager
+        self.sound = sound
+        self.f_title = FontCache.get(FONT_MEDIUM, bold=True)
+        self.f_label = FontCache.get(FONT_SMALL)
+        self._tick = 0
+        self.cat_idx = 0
+        self.selected = None
+        self.confirm_mode = False
+        self.confirm_item = None
+        self.confirm_category = None
+        self.last_purchase_result = None
+        self.opening = None
+        self.open_anim = 0
+
+    def update(self, events, mouse_pos):
+        self._tick += 1
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button==1:
+                # category clicks
+                cx = SCREEN_W//2 - 320
+                for i, c in enumerate(self.CATS):
+                    r = pygame.Rect(cx + i*220, 160, 200, 40)
+                    if r.collidepoint(event.pos):
+                        self.cat_idx = i; self.selected = None
+                # item click
+                ix = SCREEN_W//2 - 360
+                iy = 240
+                items = self.shop.get_catalog(self.CATS[self.cat_idx])
+                for i, it in enumerate(items):
+                    r = pygame.Rect(ix + (i%3)*240, iy + (i//3)*140, 220, 120)
+                    if r.collidepoint(event.pos):
+                        self.selected = it['key']
+                        self.selected_item = it
+                # chest areas
+                chest_x = SCREEN_W - 220
+                chest_y = SCREEN_H - 220
+                if pygame.Rect(chest_x, chest_y, 180, 160).collidepoint(event.pos):
+                    # open a common chest for testing
+                    self.opening = 'common'; self.open_anim = 30
+                    if self.sound: self.sound.play('chest_open')
+
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return 'back'
+
+            # handle purchase confirm clicks
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button==1 and self.selected:
+                # purchase / equip button area
+                bx = SCREEN_W//2 + 260
+                by = SCREEN_H//2 + 140
+                b_rect = pygame.Rect(bx-60, by-24, 120, 48)
+                if b_rect.collidepoint(event.pos):
+                    # if owned -> equip, else confirm purchase
+                    cat = self.CATS[self.cat_idx]
+                    owned = self.inv.is_owned(cat, self.selected)
+                    if owned:
+                        ok = self.shop.equip('blade' if cat=='blades' else ('trail' if cat=='trails' else 'background'), self.selected)
+                        self.last_purchase_result = {'type':'equip','item':self.selected,'ok':ok}
+                        if self.sound and ok: self.sound.play('equip')
+                    else:
+                        self.confirm_mode = True
+                        self.confirm_item = self.selected
+                        self.confirm_category = cat
+                    
+            # confirmation modal handling
+            if self.confirm_mode and event.type == pygame.MOUSEBUTTONDOWN and event.button==1:
+                # yes/no buttons
+                yx = SCREEN_W//2 - 120
+                yy = SCREEN_H//2 + 40
+                yes_rect = pygame.Rect(yx, yy, 100, 44)
+                no_rect = pygame.Rect(yx + 140, yy, 100, 44)
+                if yes_rect.collidepoint(event.pos):
+                    # perform purchase
+                    ok = self.shop.purchase(self.confirm_category, self.confirm_item)
+                    self.last_purchase_result = {'type':'purchase','item':self.confirm_item,'ok':ok}
+                    if self.sound and ok: self.sound.play('purchase')
+                    self.confirm_mode = False
+                    self.confirm_item = None
+                    self.confirm_category = None
+                if no_rect.collidepoint(event.pos):
+                    self.confirm_mode = False
+                    self.confirm_item = None
+                    self.confirm_category = None
+
+        # animate chest opening
+        if self.opening:
+            self.open_anim -= 1
+            if self.open_anim <= 0:
+                rewards = self.chest.open_chest(self.opening)
+                # create simple textual popups via notifier if available
+                # we'll return rewards to main loop via a property
+                self.last_chest_rewards = rewards
+                self.opening = None
+        return None
+
+    def draw(self, surface):
+        _panel(surface, pygame.Rect(SCREEN_W//2 - 460, 120, 920, SCREEN_H - 240))
+        _render_glow_text(surface, 'SHOP', self.f_title, NEON_CYAN, SCREEN_W//2, 140, glow_color=NEON_CYAN)
+
+        # categories
+        cx = SCREEN_W//2 - 320
+        for i, c in enumerate(self.CATS):
+            r = pygame.Rect(cx + i*220, 160, 200, 40)
+            col = NEON_ORANGE if i==self.cat_idx else (40,40,50)
+            pygame.draw.rect(surface, col, r, border_radius=10)
+            t = self.f_label.render(c.upper(), True, WHITE if i==self.cat_idx else (160,160,160))
+            surface.blit(t, (r.x + 12, r.y + 8))
+
+        # items
+        items = self.shop.get_catalog(self.CATS[self.cat_idx])
+        ix = SCREEN_W//2 - 360
+        iy = 240
+        for i, it in enumerate(items):
+            r = pygame.Rect(ix + (i%3)*240, iy + (i//3)*140, 220, 120)
+            active = (self.selected == it['key'])
+            pygame.draw.rect(surface, (30,30,40), r, border_radius=12)
+            if active:
+                for s in range(1,4):
+                    pygame.draw.rect(surface, (*NEON_CYAN, 20), r.inflate(s*6,s*6), border_radius=14, width=2)
+            nm = self.f_label.render(it['name'], True, WHITE)
+            price = f"{it['coins']}c" + (f" / {it['gems']}g" if it['gems'] else '')
+            pr = self.f_label.render(price, True, NEON_YELLOW)
+            surface.blit(nm, (r.x + 12, r.y + 12))
+            surface.blit(pr, (r.x + 12, r.y + 44))
+            # owned/equipped badge
+            owned = self.inv.is_owned(self.CATS[self.cat_idx], it['key'])
+            if owned:
+                b = self.f_label.render('OWNED', True, NEON_GREEN)
+                surface.blit(b, (r.x + 120, r.y + 12))
+
+        # purchase / equip button
+        if self.selected:
+            bx = SCREEN_W//2 + 260
+            by = SCREEN_H//2 + 140
+            btn_rect = pygame.Rect(bx-60, by-24, 120, 48)
+            pygame.draw.rect(surface, NEON_CYAN, btn_rect, border_radius=10)
+            cat = self.CATS[self.cat_idx]
+            owned = self.inv.is_owned(cat, self.selected)
+            label = 'EQUIP' if owned else 'BUY'
+            l_s = self.f_label.render(label, True, (10,10,20))
+            surface.blit(l_s, (btn_rect.x + 28, btn_rect.y + 12))
+
+        # confirmation modal
+        if self.confirm_mode:
+            mrect = pygame.Rect(SCREEN_W//2 - 220, SCREEN_H//2 - 100, 440, 220)
+            _panel(surface, mrect, color=(20,20,30), radius=12)
+            q = self.f_label.render(f"Buy {self.confirm_item}?", True, NEON_YELLOW)
+            surface.blit(q, (SCREEN_W//2 - q.get_width()//2, SCREEN_H//2 - 40))
+            # yes/no
+            yx = SCREEN_W//2 - 120
+            yy = SCREEN_H//2 + 40
+            pygame.draw.rect(surface, NEON_GREEN, (yx, yy, 100, 44), border_radius=8)
+            pygame.draw.rect(surface, NEON_PINK, (yx + 140, yy, 100, 44), border_radius=8)
+            yes = self.f_label.render('YES', True, (10,10,10))
+            no  = self.f_label.render('NO', True, (10,10,10))
+            surface.blit(yes, (yx + 34, yy + 12))
+            surface.blit(no, (yx + 174, yy + 12))
+
+        # chest area
+        chest_x = SCREEN_W - 220
+        chest_y = SCREEN_H - 220
+        chest_rect = pygame.Rect(chest_x, chest_y, 180, 160)
+        pygame.draw.rect(surface, (40,20,30), chest_rect, border_radius=12)
+        ch = self.f_label.render('OPEN CHEST', True, NEON_YELLOW)
+        surface.blit(ch, (chest_x + 18, chest_y + 66))
+
+        # player currency
+        if self.pm and getattr(self.pm,'player',None):
+            money = f"Coins: {self.pm.player.coins}   Gems: {self.pm.player.gems}"
+            m_s = self.f_label.render(money, True, NEON_YELLOW)
+            surface.blit(m_s, (SCREEN_W//2 - m_s.get_width()//2, SCREEN_H - 60))

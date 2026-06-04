@@ -1,0 +1,18 @@
+{
+  "owned": {
+    "blades": [
+      "default"
+    ],
+    "trails": [
+      "default"
+    ],
+    "backgrounds": [
+      "default"
+    ]
+  },
+  "equipped": {
+    "blade": "default",
+    "trail": "default",
+    "background": "default"
+  }
+}

@@ -42,6 +42,14 @@ from animations import (DynamicBackground, ComboAnimator,
                          SlowMoController, ZoomController,
                          MotionBlurOverlay, CinematicBars)
 
+# BladeVerse managers (XP, achievements, rewards, leaderboard)
+from bladeverse.player import PlayerManager
+from bladeverse.firebase_stub import FirebaseClient
+from bladeverse.xp import XPManager
+from bladeverse.achievements import AchievementsManager
+from bladeverse.rewards import RewardManager
+from bladeverse.leaderboard import LeaderboardManager
+
 STATE_MENU        = "menu"
 STATE_MODE_SEL    = "mode_select"
 STATE_PLAYING     = "playing"
@@ -117,6 +125,27 @@ class GameManager:
             "theme": "Cyberpunk", "voice": False,
         }
         os.makedirs(SAVES_DIR, exist_ok=True)
+
+        # ── BladeVerse integrations (optional player + firebase)
+        # If main.py created a PlayerManager and passed it in, use it; otherwise create a local one.
+        self.pm = None
+        try:
+            # attempt to use existing saves/player_profile.json via PlayerManager
+            self.pm = PlayerManager()
+        except Exception:
+            self.pm = None
+
+        self.fb = FirebaseClient()
+        self.xp_mgr = XPManager(self.pm, on_level_up=self._on_level_up)
+        self.notifier_queue = []
+        self.ach_mgr = AchievementsManager(self.pm, notifier=self._notify)
+        self.rew_mgr = RewardManager(self.pm, notifier=self._notify)
+        self.lb_mgr = LeaderboardManager(self.fb, self.pm)
+
+        # session counters
+        self._session_slices = 0
+        self._session_max_combo = 0
+        self._notifications = []
 
     # ─────────────────────────────────────────────────────────────────────
     # STATE TRANSITIONS
@@ -223,6 +252,15 @@ class GameManager:
         # ── Core systems update ──────────────────────────────────────────
         self.shake.update(); self.flash.update(); self.parts.update()
 
+        # ── Flush notifications into popups
+        try:
+            from effects import ComboPopup
+            for title, msg in list(self._notifications):
+                popups.append(ComboPopup(f"{title}", SCREEN_W//2, 140, color=NEON_YELLOW))
+            self._notifications.clear()
+        except Exception:
+            pass
+
         # ── Game over check ──────────────────────────────────────────────
         if self.lives <= 0:
             self._end_game()
@@ -283,6 +321,20 @@ class GameManager:
             self.sound.play("combo")
             popups.append(ComboPopup("BOSS DEFEATED!", SCREEN_W//2, 240,
                                      color=(255,200,0)))
+            # BladeVerse: boss rewards, XP and achievements
+            try:
+                # award XP
+                xp_amt = int(pts * 1.5) + 200
+                self.xp_mgr.add_xp(xp_amt)
+                # rewards
+                self.rew_mgr.grant_for_boss()
+                # achievements
+                unlocked = self.ach_mgr.evaluate_on_boss_defeat()
+                for a in unlocked:
+                    self.rew_mgr.grant_for_achievement(a)
+                    popups.append(ComboPopup("ACHIEVEMENT!", SCREEN_W//2, 180, color=NEON_YELLOW))
+            except Exception:
+                pass
         else:
             self.score += pts
         self.voice.say("boss")
@@ -341,6 +393,37 @@ class GameManager:
 
         if hasattr(fruit, 'power'):
             self._activate_power(fruit.power, fruit.x, fruit.y, popups)
+
+        # ── BladeVerse: grant XP and check achievements/rewards
+        try:
+            # increment session slices and update player stats
+            self._session_slices += 1
+            if self.pm:
+                self.pm.record_slices(1)
+
+            # compute XP: proportional to earned points
+            xp_amt = max(1, int(earned * 0.25))
+            # combo bonus XP
+            xp_amt += int(self.combo * 2)
+            res = self.xp_mgr.add_xp(xp_amt)
+            if res.get('leveled'):
+                # level up handled in callback
+                pass
+
+            # achievements: evaluate slice-related ones
+            unlocked = self.ach_mgr.evaluate_on_slice(self._session_slices, self.score, self.combo, speed > 25)
+            for a in unlocked:
+                # grant rewards for achievement
+                self.rew_mgr.grant_for_achievement(a)
+                # enqueue popup
+                from effects import ComboPopup
+                popups.append(ComboPopup("ACHIEVEMENT!", SCREEN_W//2, 160, color=NEON_YELLOW))
+        except Exception:
+            pass
+
+        # update session max combo
+        if self.combo > self._session_max_combo:
+            self._session_max_combo = self.combo
 
     def _on_bomb_hit(self, bomb, popups):
         from effects import ComboPopup
@@ -415,6 +498,25 @@ class GameManager:
             v = getattr(self, attr)
             if v > 0: setattr(self, attr, v-1)
 
+    # ─────────────────────────────────────────────────────────────────
+    # Notifications / callbacks
+    # ─────────────────────────────────────────────────────────────────
+    def _notify(self, title: str, message: str):
+        # queue a notification to be shown as popup in the next frame
+        self._notifications.append((title, message))
+
+    def _on_level_up(self, old_level: int, new_level: int):
+        # called by XPManager when a level up occurs
+        try:
+            self.rew_mgr.grant_levelup(old_level, new_level)
+            self._notify('Level Up!', f'Level {new_level} reached')
+            # achievements for reaching high levels
+            unlocked = self.ach_mgr.evaluate_on_level(new_level)
+            for a in unlocked:
+                self.rew_mgr.grant_for_achievement(a)
+        except Exception:
+            pass
+
     # ─────────────────────────────────────────────────────────────────────
     # SPAWN
     # ─────────────────────────────────────────────────────────────────────
@@ -461,6 +563,16 @@ class GameManager:
         if self._is_new_record: self.high_score = self.score
         self.sound.play("game_over")
         self.voice.say("victory")
+        # BladeVerse: record player stats and push leaderboard
+        try:
+            if self.pm:
+                self.pm.record_game(self.score, self._session_max_combo)
+            # push to leaderboard
+            self.lb_mgr.push_score(self.score, mode=self.game_mode)
+            # sync player state to stub
+            self.lb_mgr.sync_player()
+        except Exception:
+            pass
         self._save_score()
         self.goto(STATE_GAME_OVER)
 

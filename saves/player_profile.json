@@ -1,0 +1,20 @@
+{
+  "username": "Player",
+  "avatar": "default",
+  "country": "India",
+  "highestScore": 854,
+  "totalFruitsSliced": 35,
+  "gamesPlayed": 6,
+  "level": 9,
+  "xp": 2159,
+  "achievements": [
+    "first_slice",
+    "speed_demon",
+    "score_100",
+    "boss_slayer"
+  ],
+  "unlockedRewards": [],
+  "coins": 1060,
+  "gems": 11,
+  "rank": "Rookie"
+}

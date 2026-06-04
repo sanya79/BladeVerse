@@ -1,6 +1,12 @@
 [
   {
     "name": "Player",
+    "score": 854,
+    "mode": "Time Attack",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
     "score": 783,
     "mode": "Arcade",
     "date": "2026-05-25"
@@ -43,9 +49,39 @@
   },
   {
     "name": "Player",
+    "score": 204,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
+    "score": 204,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
     "score": 202,
     "mode": "Arcade",
     "date": "2026-05-25"
+  },
+  {
+    "name": "Player",
+    "score": 194,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
+    "score": 190,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
+    "score": 190,
+    "mode": "Time Attack",
+    "date": "2026-06-04"
   },
   {
     "name": "Player",
@@ -55,68 +91,32 @@
   },
   {
     "name": "Player",
+    "score": 179,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
+    "score": 170,
+    "mode": "Arcade",
+    "date": "2026-06-04"
+  },
+  {
+    "name": "Player",
     "score": 145,
     "mode": "Arcade",
     "date": "2026-05-25"
   },
   {
     "name": "Player",
-    "score": 124,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 120,
+    "score": 142,
     "mode": "Arcade",
-    "date": "2026-05-27"
+    "date": "2026-06-04"
   },
   {
     "name": "Player",
-    "score": 110,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 107,
-    "mode": "Arcade",
-    "date": "2026-05-27"
-  },
-  {
-    "name": "Player",
-    "score": 92,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 87,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 80,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 75,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 70,
-    "mode": "Survival",
-    "date": "2026-06-01"
-  },
-  {
-    "name": "Player",
-    "score": 60,
-    "mode": "Survival",
-    "date": "2026-06-01"
+    "score": 130,
+    "mode": "Time Attack",
+    "date": "2026-06-04"
   }
 ]

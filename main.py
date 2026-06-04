@@ -30,7 +30,11 @@ from game_manager   import (GameManager,
                              STATE_PAUSED, STATE_GAME_OVER,
                              STATE_LEADERBOARD, STATE_SETTINGS)
 from ui import (FontCache, HUD, MainMenu, ModeSelectScreen, PauseOverlay,
-                GameOverScreen, LeaderboardScreen, SettingsScreen)
+                GameOverScreen, LeaderboardScreen, SettingsScreen, ProfileScreen, ShopScreen)
+from bladeverse.player import PlayerManager
+from bladeverse.inventory_manager import InventoryManager
+from bladeverse.shop_manager import ShopManager
+from bladeverse.chest_manager import ChestManager
 
 
 def init_pygame(fullscreen=FULLSCREEN):
@@ -69,6 +73,10 @@ def main():
     sound     = SoundManager()
     sound.play_music()
 
+    # Player profile manager (local persistence)
+    pm = PlayerManager()
+
+
     particles = ParticleSystem()
     trail     = BladeTrail()
     shake     = ScreenShake()
@@ -84,6 +92,13 @@ def main():
     gameover_sc = GameOverScreen()
     lb_scr      = LeaderboardScreen()
     settings_sc = SettingsScreen()
+    profile_sc  = ProfileScreen()
+    profile_sc.load_player(pm.player)
+    # Shop + inventory
+    inv_mgr = InventoryManager()
+    shop_mgr = ShopManager(pm, inv_mgr)
+    chest_mgr = ChestManager(pm, inv_mgr)
+    shop_sc = ShopScreen(shop_mgr, inv_mgr, pm, chest_mgr, sound)
 
     # ── Game manager (now owns all new systems) ──────────────────────────
     gm = GameManager(sound, particles, trail, shake, flash, bg, hud_ui)
@@ -94,6 +109,8 @@ def main():
     game_surf = pygame.Surface((SCREEN_W, SCREEN_H))
 
     running = True
+    show_profile = False
+    show_shop = False
     while running:
         clock.tick(TARGET_FPS)
         fps   = clock.get_fps()
@@ -154,10 +171,56 @@ def main():
         if gm.state == STATE_MENU:
             action = main_menu.update(events, mouse)
             main_menu.draw(game_surf)
-            if action == "play":        gm.goto(STATE_MODE_SEL);    sound.play("menu_tick")
-            elif action == "leaderboard":gm.goto(STATE_LEADERBOARD); sound.play("menu_tick")
-            elif action == "settings":   gm._prev_state=STATE_MENU; gm.goto(STATE_SETTINGS); sound.play("menu_tick")
-            elif action == "quit":       running = False
+            if action == "play":
+                # require profile
+                if not pm.player or pm.player.username in (None, "", "Player"):
+                    show_profile = True
+                    profile_sc.load_player(pm.player)
+                else:
+                    gm.goto(STATE_MODE_SEL);    sound.play("menu_tick")
+            elif action == "profile":
+                show_profile = True
+                profile_sc.load_player(pm.player)
+            elif action == "shop":
+                show_shop = True
+                shop_sc.selected = None
+            elif action == "leaderboard":
+                gm.goto(STATE_LEADERBOARD); sound.play("menu_tick")
+            elif action == "settings":
+                gm._prev_state=STATE_MENU; gm.goto(STATE_SETTINGS); sound.play("menu_tick")
+            elif action == "quit":
+                running = False
+
+            # Profile overlay handling
+            if show_profile:
+                prof_action = profile_sc.update(events, mouse, pm)
+                profile_sc.draw(game_surf, pm.player)
+                if prof_action == "saved":
+                    show_profile = False
+                    profile_sc.message = "Saved"
+                    sound.play("menu_tick")
+                    # after saving, proceed to mode select
+                    gm.goto(STATE_MODE_SEL)
+                elif prof_action == "back":
+                    show_profile = False
+            # Shop overlay handling
+            if show_shop:
+                shop_action = shop_sc.update(events, mouse)
+                shop_sc.draw(game_surf)
+                # if chest opened, create popups for rewards
+                if getattr(shop_sc, 'last_chest_rewards', None):
+                    rews = shop_sc.last_chest_rewards
+                    for r in rews:
+                        popups.append(ComboPopup(str(r), SCREEN_W//2, 180, color=(200,200,60)))
+                    shop_sc.last_chest_rewards = None
+                # if purchase/equip happened, show result
+                if getattr(shop_sc, 'last_purchase_result', None):
+                    res = shop_sc.last_purchase_result
+                    txt = 'Purchased' if res.get('ok') else 'Failed'
+                    popups.append(ComboPopup(f"{txt}: {res.get('item')}", SCREEN_W//2, 200, color=(200,220,100)))
+                    shop_sc.last_purchase_result = None
+                if shop_action == 'back':
+                    show_shop = False
 
         elif gm.state == STATE_MODE_SEL:
             action = mode_sel.update(events, mouse)
